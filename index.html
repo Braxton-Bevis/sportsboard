@@ -407,11 +407,18 @@ body.kiosk{cursor:none}
   font-variant-numeric:tabular-nums;
 }
 .week__who{
+  display:flex;
+  align-items:center;
+  gap:7px;
   font-family:"Barlow Condensed","Arial Narrow",sans-serif;
   font-weight:600;
   font-size:clamp(17px,1.4vw,23px);
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap;overflow:hidden;
+  min-width:0;
 }
+.week__who img{width:22px;height:22px;object-fit:contain;flex:0 0 auto}
+.week__who span{overflow:hidden;text-overflow:ellipsis}
+.week__v{color:var(--faint);font-family:"IBM Plex Mono",monospace;font-size:11px;flex:0 0 auto}
 .week__lg,.week__tv{
   font-family:"IBM Plex Mono",monospace;
   font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);
@@ -477,6 +484,52 @@ body.kiosk{cursor:none}
   .week__row{padding:6px 11px}
   .week{gap:5px}
 }
+
+/* ---------- 300% browser scale: ~640x360 CSS px on a 1080p panel ---------- */
+@media (max-height:520px){
+  :root{--gutter:10px}
+  .rack{padding:6px var(--gutter);gap:14px}
+  .rack__id{min-width:0}
+  .rack__date{font-size:26px}
+  .tape__label{display:none}
+  .rack__clock{font-size:17px}
+  .rack__signal{padding:3px 7px;font-size:9px}
+  .tape__offset{font-size:17px}
+  .slide__kicker{font-size:24px}
+  .slide__sub{font-size:10px;letter-spacing:.12em}
+  .slide__head{margin-bottom:7px;padding-bottom:5px;gap:10px}
+  .grid{gap:8px}
+  .grid.cols-2,.grid.cols-3{grid-template-columns:repeat(2,1fr)}
+  .card{padding:8px 10px;gap:5px;border-left-width:4px;border-radius:4px}
+  .card__top{font-size:9px;gap:6px}
+  .row{gap:7px}
+  .row__logo{width:21px;height:21px}
+  .row__name{font-size:15px}
+  .row__score{font-size:21px}
+  .row__rec{display:none}
+  .card__line{font-size:10px;gap:9px;padding-top:5px}
+  .card__meta{font-size:9px}
+  .slot__time{font-size:19px}
+  .slot__count{font-size:9px}
+  .odds__head,.odds__row{grid-template-columns:64px 1fr 84px 110px 52px;gap:8px;padding:0 8px}
+  .odds__row{padding:6px 8px}
+  .odds__when{font-size:10px}
+  .odds__match{font-size:14px;gap:5px}
+  .odds__match img{width:18px;height:18px}
+  .odds__num{font-size:12px}
+  .week__day{font-size:19px;margin-top:6px;padding-bottom:3px}
+  .week__row{grid-template-columns:64px 1fr 92px;gap:8px;padding:4px 8px}
+  .week__tv{display:none}
+  .week__time{font-size:11px}
+  .week__who{font-size:14px;gap:5px}
+  .week__who img{width:17px;height:17px}
+  .week__lg{font-size:9px}
+  .week{gap:4px}
+  .rail{padding:5px var(--gutter)}
+  .dot{width:6px;height:6px}
+  .rail__meta{font-size:9px;letter-spacing:.08em}
+  .warming{padding:5px var(--gutter);font-size:10px}
+}
 </style>
 </head>
 <body class="kiosk">
@@ -529,9 +582,10 @@ body.kiosk{cursor:none}
   // Per-page capacity, and a ceiling on pages so one huge NFL Sunday
   // can't stretch the loop to ten minutes. Anything dropped is counted
   // and shown in the slide header rather than silently vanishing.
-  // today gets one fewer per page than final: its slot headers eat grid rows
-  var PER = { live: 4, today: 5, final: 6, odds: 8, week: 11 };
-  var MAXPAGES = { live: 2, today: 4, final: 3, odds: 3, week: 4 };
+  // Tuned small: the panel runs at 300% browser scale, so each slide
+  // only has ~640x360 CSS px to work with.
+  var PER = { live: 2, today: 3, final: 4, odds: 4, week: 6 };
+  var MAXPAGES = { live: 4, today: 6, final: 4, odds: 5, week: 6 };
 
   var deck = [];
   var index = 0;
@@ -665,7 +719,10 @@ body.kiosk{cursor:none}
       status.appendChild(el("span", "held", "HELD"));
     } else if (game.state === "in") {
       status.className = "card__status is-live";
-      status.textContent = (game.clock ? game.clock + "  " : "") + (game.detail || "LIVE");
+      // ESPN's shortDetail usually embeds the clock already ("14:55 - 1st")
+      var detail = game.detail || "LIVE";
+      status.textContent = (game.clock && detail.indexOf(game.clock) === -1)
+        ? game.clock + "  " + detail : detail;
     } else if (game.state === "post") {
       status.textContent = game.detail || "Final";
     } else {
@@ -793,8 +850,15 @@ body.kiosk{cursor:none}
       var row = el("div", "week__row");
       row.style.setProperty("--i", step++);
       row.appendChild(el("span", "week__time", timeOf(g.start)));
-      row.appendChild(el("span", "week__who",
-        (g.away.name || "TBD") + "  v  " + (g.home.name || "TBD")));
+
+      var who = el("span", "week__who");
+      var a = logo(g.away); if (a) who.appendChild(a);
+      who.appendChild(el("span", null, g.away.name || "TBD"));
+      who.appendChild(el("span", "week__v", "v"));
+      var h = logo(g.home); if (h) who.appendChild(h);
+      who.appendChild(el("span", null, g.home.name || "TBD"));
+      row.appendChild(who);
+
       row.appendChild(el("span", "week__lg", g.league));
       row.appendChild(el("span", "week__tv", g.broadcast || ""));
       list.appendChild(row);
