@@ -1,0 +1,14 @@
+[Unit]
+Description=Sportsboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=thebrax2000
+WorkingDirectory=/home/thebrax2000/sportsboard
+ExecStart=/usr/bin/python3 /home/thebrax2000/sportsboard/sportsboard.py
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

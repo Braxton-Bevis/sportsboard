@@ -1,0 +1,61 @@
+{
+  "_comment": "Edit this file to change teams, delay, or refresh rates. Restart sportsboard.py after editing.",
+
+  "port": 8080,
+  "delay_seconds": 180,
+  "poll_seconds": 20,
+  "cold_poll_seconds": 300,
+  "days_ahead": 8,
+
+  "_user_agent_note": "ESPN's Akamai edge 403s spoofed browser UAs. An honest client UA passes; a Chrome string does not.",
+  "user_agent": "Python-urllib/3.6",
+
+  "feeds": [
+    { "key": "sec",        "label": "SEC",              "path": "football/college-football", "query": "groups=8", "teams": "*" },
+    { "key": "cfb-bowls",  "label": "CFB POSTSEASON",   "path": "football/college-football", "query": "groups=80",
+      "teams": ["alabama", "georgia", "texas", "tennessee", "auburn", "lsu", "ole miss", "mississippi state", "missouri", "oklahoma", "texas a&m", "florida", "kentucky", "south carolina", "vanderbilt", "arkansas"] },
+
+    { "key": "nfl",        "label": "NFL",              "path": "football/nfl", "teams": "*" },
+
+    { "key": "mlb",        "label": "MLB",              "path": "baseball/mlb",
+      "teams": ["los angeles dodgers", "pittsburgh pirates"] },
+
+    { "key": "mls",        "label": "MLS",              "path": "soccer/usa.1",  "teams": ["nashville", "inter miami"] },
+    { "key": "epl",        "label": "PREMIER LEAGUE",   "path": "soccer/eng.1",  "teams": ["manchester city"] },
+    { "key": "laliga",     "label": "LALIGA",           "path": "soccer/esp.1",  "teams": ["barcelona", "real madrid"] },
+    { "key": "brasil",     "label": "BRASILEIRÃO",      "path": "soccer/bra.1",  "teams": ["flamengo"] },
+    { "key": "efl-champ",  "label": "CHAMPIONSHIP",     "path": "soccer/eng.2",  "teams": ["middlesbrough"] },
+
+    { "key": "ucl",        "label": "CHAMPIONS LEAGUE", "path": "soccer/uefa.champions",       "teams": ["manchester city", "barcelona", "real madrid"] },
+    { "key": "ucl-q",      "label": "UCL QUALIFYING",   "path": "soccer/uefa.champions_qual",  "teams": ["manchester city", "barcelona", "real madrid"] },
+    { "key": "uel",        "label": "EUROPA LEAGUE",    "path": "soccer/uefa.europa",          "teams": ["manchester city", "barcelona", "real madrid", "middlesbrough"] },
+    { "key": "super-cup",  "label": "UEFA SUPER CUP",   "path": "soccer/uefa.super_cup",       "teams": ["manchester city", "barcelona", "real madrid"] },
+    { "key": "fa-cup",     "label": "FA CUP",           "path": "soccer/eng.fa",               "teams": ["manchester city", "middlesbrough"] },
+    { "key": "carabao",    "label": "CARABAO CUP",      "path": "soccer/eng.league_cup",       "teams": ["manchester city", "middlesbrough"] },
+    { "key": "copa-rey",   "label": "COPA DEL REY",     "path": "soccer/esp.copa_del_rey",     "teams": ["barcelona", "real madrid"] },
+
+    { "key": "libertad",   "label": "LIBERTADORES",     "path": "soccer/conmebol.libertadores",  "teams": ["flamengo"] },
+    { "key": "sudamer",    "label": "SUDAMERICANA",     "path": "soccer/conmebol.sudamericana",  "teams": ["flamengo"] },
+    { "key": "recopa",     "label": "RECOPA",           "path": "soccer/conmebol.recopa",        "teams": ["flamengo"] },
+    { "key": "copa-brasil","label": "COPA DO BRASIL",   "path": "soccer/bra.copa_do_brazil",     "teams": ["flamengo"] },
+
+    { "key": "leagues-cup","label": "LEAGUES CUP",      "path": "soccer/concacaf.leagues.cup",   "teams": ["nashville", "inter miami"] },
+    { "key": "ccc",        "label": "CONCACAF CUP",     "path": "soccer/concacaf.champions",     "teams": ["nashville", "inter miami"] },
+    { "key": "us-open",    "label": "U.S. OPEN CUP",    "path": "soccer/usa.open",               "teams": ["nashville", "inter miami"] },
+
+    { "key": "cwc",        "label": "CLUB WORLD CUP",   "path": "soccer/fifa.cwc",
+      "teams": ["manchester city", "barcelona", "real madrid", "flamengo", "inter miami"] },
+
+    { "key": "usmnt-fr",   "label": "USMNT FRIENDLY",   "path": "soccer/fifa.friendly",           "teams": ["united states"] },
+    { "key": "wc",         "label": "WORLD CUP",        "path": "soccer/fifa.world",              "teams": ["united states"] },
+    { "key": "wcq",        "label": "WC QUALIFYING",    "path": "soccer/fifa.worldq.concacaf",    "teams": ["united states"] },
+    { "key": "gold-cup",   "label": "GOLD CUP",         "path": "soccer/concacaf.gold",           "teams": ["united states"] },
+    { "key": "cnl",        "label": "NATIONS LEAGUE",   "path": "soccer/concacaf.nations.league", "teams": ["united states"] },
+    { "key": "olympics",   "label": "OLYMPICS",         "path": "soccer/fifa.olympics",           "teams": ["united states"] },
+    { "key": "u23",        "label": "USA U23",          "path": "soccer/concacaf.u23",            "teams": ["united states"] },
+    { "key": "u20-wc",     "label": "USA U20 WC",       "path": "soccer/fifa.world.u20",          "teams": ["united states"] },
+
+    { "key": "club-fr",    "label": "FRIENDLY",         "path": "soccer/club.friendly", "enabled": false,
+      "teams": ["manchester city", "barcelona", "real madrid", "flamengo", "inter miami", "nashville", "middlesbrough"] }
+  ]
+}

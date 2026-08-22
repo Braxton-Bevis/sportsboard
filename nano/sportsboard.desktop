@@ -1,0 +1,5 @@
+[Desktop Entry]
+Type=Application
+Name=Sportsboard
+Exec=sh -c "xset s off; xset -dpms; xset s noblank; chromium-browser --kiosk --incognito --noerrdialogs --disable-infobars --disable-session-crashed-bubble --check-for-update-interval=31536000 http://localhost:8080"
+X-GNOME-Autostart-enabled=true

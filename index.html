@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sportsboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ---------------------------------------------------------------
+   Sportsboard — broadcast delay rack, slideshow build
+   Palette: slate signal-room blue, amber tally, cyan timecode.
+   Team colours come from the feed, so the accent varies by fixture.
+   Motion is transform/opacity only — the Nano's GPU thanks you.
+----------------------------------------------------------------*/
+:root{
+  --ink:#0A0E16;
+  --panel:#141C29;
+  --panel-lift:#1A2433;
+  --line:#243244;
+  --text:#E9EFF6;
+  --dim:#7A8CA0;
+  --faint:#4E5F73;
+  --tally:#F5A524;
+  --tape:#5AC8DA;
+  --accent:#5AC8DA;
+  --win:#3FBF7F;
+  --gutter:clamp(16px,2vw,34px);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--ink);
+  color:var(--text);
+  font-family:"Barlow","Helvetica Neue",sans-serif;
+  font-size:16px;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+body.kiosk{cursor:none}
+
+/* ---------- header rack ---------- */
+.rack{
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  gap:var(--gutter);
+  padding:12px var(--gutter);
+  border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,#111925,#0C121C);
+}
+.rack__id{min-width:340px}
+.rack__eyebrow{
+  display:block;
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11px;
+  letter-spacing:.34em;
+  color:var(--faint);
+  text-transform:uppercase;
+  margin-bottom:2px;
+}
+/* the day is the thing you read from across the room — give it room */
+.rack__date{
+  font-family:"Barlow Condensed","Arial Narrow",sans-serif;
+  font-weight:700;
+  font-size:clamp(38px,4.2vw,68px);
+  letter-spacing:.015em;
+  line-height:.95;
+  text-transform:uppercase;
+  white-space:nowrap;
+}
+.tape{flex:1 1 auto;display:flex;align-items:center;gap:14px;min-width:0}
+.tape__label{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11px;
+  letter-spacing:.24em;
+  color:var(--dim);
+  white-space:nowrap;
+}
+.tape__offset{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:clamp(20px,2vw,30px);
+  font-weight:600;
+  color:var(--tape);
+  font-variant-numeric:tabular-nums;
+}
+.rack__right{display:flex;align-items:center;gap:18px;margin-left:auto}
+.rack__clock{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:clamp(20px,2vw,30px);
+  font-variant-numeric:tabular-nums;
+  color:var(--text);
+}
+.rack__signal{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11px;
+  letter-spacing:.18em;
+  text-transform:uppercase;
+  color:var(--dim);
+  border:1px solid var(--line);
+  border-radius:3px;
+  padding:5px 10px;
+  white-space:nowrap;
+}
+.rack__signal.is-warn{color:var(--tally);border-color:#4A3A1A}
+
+/* ---------- warming banner ---------- */
+.warming{
+  display:none;
+  flex:0 0 auto;
+  align-items:center;
+  gap:12px;
+  padding:9px var(--gutter);
+  background:#2A2010;
+  border-bottom:1px solid #4A3A1A;
+  color:var(--tally);
+  font-family:"IBM Plex Mono",monospace;
+  font-size:13px;
+  letter-spacing:.06em;
+}
+.warming.is-on{display:flex}
+.warming__dot{
+  width:9px;height:9px;border-radius:50%;
+  background:var(--tally);
+  animation:pulse 1.6s ease-in-out infinite;
+}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+
+/* ---------- stage ---------- */
+.stage{
+  flex:1 1 auto;
+  position:relative;
+  overflow:hidden;
+  padding:var(--gutter);
+}
+.slide{
+  position:absolute;
+  inset:var(--gutter);
+  display:flex;
+  flex-direction:column;
+  animation:slidein .42s cubic-bezier(.22,.61,.36,1) both;
+}
+@keyframes slidein{
+  from{opacity:0;transform:translate3d(34px,0,0)}
+  to{opacity:1;transform:translate3d(0,0,0)}
+}
+@media (prefers-reduced-motion:reduce){
+  .slide{animation:none}
+}
+
+.slide__head{
+  flex:0 0 auto;
+  display:flex;
+  align-items:baseline;
+  gap:16px;
+  margin-bottom:14px;
+  padding-bottom:10px;
+  border-bottom:2px solid var(--line);
+}
+.slide__kicker{
+  font-family:"Barlow Condensed","Arial Narrow",sans-serif;
+  font-weight:700;
+  font-size:clamp(28px,3.1vw,50px);
+  letter-spacing:.03em;
+  text-transform:uppercase;
+  line-height:1;
+}
+.slide__kicker.is-live{color:var(--tally)}
+.slide__sub{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:12px;
+  letter-spacing:.2em;
+  text-transform:uppercase;
+  color:var(--dim);
+}
+.slide__page{
+  margin-left:auto;
+  font-family:"IBM Plex Mono",monospace;
+  font-size:12px;
+  letter-spacing:.18em;
+  color:var(--faint);
+}
+.slide__body{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+
+/* ---------- game cards ---------- */
+.grid{
+  flex:1 1 auto;
+  display:grid;
+  gap:14px;
+  align-content:start;
+}
+.grid.cols-2{grid-template-columns:repeat(2,1fr)}
+.grid.cols-3{grid-template-columns:repeat(3,1fr)}
+
+/* staggered entrance — each item leans in a beat after the one before it.
+   transform/opacity only, so the Nano stays on the compositor. */
+.grid > *,.odds__row,.week__row,.week__day{
+  animation:pop .46s cubic-bezier(.22,.61,.36,1) both;
+  animation-delay:calc(var(--i,0) * 65ms);
+}
+@keyframes pop{
+  from{opacity:0;transform:translate3d(0,18px,0)}
+  to{opacity:1;transform:translate3d(0,0,0)}
+}
+
+/* a kickoff-time divider inside the grid */
+.slot{
+  grid-column:1/-1;
+  display:flex;
+  align-items:center;
+  gap:16px;
+  margin-top:6px;
+}
+.slot__time{
+  font-family:"Barlow Condensed","Arial Narrow",sans-serif;
+  font-weight:700;
+  font-size:clamp(24px,2.2vw,38px);
+  letter-spacing:.05em;
+  color:var(--tally);
+  line-height:1;
+  white-space:nowrap;
+}
+.slot__count{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11px;
+  letter-spacing:.2em;
+  text-transform:uppercase;
+  color:var(--faint);
+  white-space:nowrap;
+}
+.slot__rule{flex:1 1 auto;height:1px;background:var(--line)}
+
+@media (prefers-reduced-motion:reduce){
+  .grid > *,.odds__row,.week__row,.week__day{animation:none}
+}
+
+.card{
+  position:relative;
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-left:5px solid var(--accent);
+  border-radius:6px;
+  padding:14px 16px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  min-height:0;
+}
+.card__top{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11px;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:var(--dim);
+}
+.card__league{color:var(--accent);font-weight:600}
+.card__status{margin-left:auto;color:var(--text);white-space:nowrap}
+.card__status.is-live{color:var(--tally);font-weight:600}
+
+.row{display:flex;align-items:center;gap:11px}
+.row__logo{
+  width:34px;height:34px;flex:0 0 auto;
+  object-fit:contain;
+}
+.row__rank{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:12px;color:var(--tally);flex:0 0 auto;
+}
+.row__name{
+  font-family:"Barlow Condensed","Arial Narrow",sans-serif;
+  font-weight:600;
+  font-size:clamp(19px,1.65vw,27px);
+  line-height:1.08;
+  letter-spacing:.01em;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  flex:1 1 auto;
+  min-width:0;
+}
+.row__rec{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11px;color:var(--faint);flex:0 0 auto;
+}
+.row__score{
+  font-family:"Barlow Condensed","Arial Narrow",sans-serif;
+  font-weight:700;
+  font-size:clamp(28px,2.9vw,46px);
+  line-height:1;
+  font-variant-numeric:tabular-nums;
+  flex:0 0 auto;
+  min-width:1.6em;
+  text-align:right;
+}
+.row.is-loser .row__name,.row.is-loser .row__score{color:var(--faint)}
+.row.is-winner .row__score{color:var(--win)}
+.card__meta{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11px;
+  color:var(--faint);
+  letter-spacing:.08em;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.card__line{
+  display:flex;gap:14px;flex-wrap:wrap;
+  font-family:"IBM Plex Mono",monospace;
+  font-size:12px;
+  color:var(--dim);
+  letter-spacing:.06em;
+  border-top:1px solid var(--line);
+  padding-top:8px;
+}
+.card__line b{color:var(--tally);font-weight:600}
+.held{color:var(--tally);letter-spacing:.2em}
+
+/* ---------- odds table ---------- */
+.odds{
+  flex:1 1 auto;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  align-content:start;
+}
+.odds__head,.odds__row{
+  display:grid;
+  grid-template-columns:120px 1fr 130px 170px 110px;
+  gap:14px;
+  align-items:center;
+  padding:0 14px;
+}
+.odds__head{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11px;
+  letter-spacing:.2em;
+  text-transform:uppercase;
+  color:var(--faint);
+  padding-bottom:6px;
+  border-bottom:1px solid var(--line);
+}
+.odds__row{
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-radius:5px;
+  padding:11px 14px;
+}
+.odds__when{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:12px;
+  color:var(--dim);
+  letter-spacing:.04em;
+}
+.odds__match{
+  display:flex;align-items:center;gap:9px;
+  font-family:"Barlow Condensed","Arial Narrow",sans-serif;
+  font-weight:600;
+  font-size:clamp(17px,1.45vw,24px);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.odds__match img{width:26px;height:26px;object-fit:contain;flex:0 0 auto}
+.odds__at{color:var(--faint);font-family:"IBM Plex Mono",monospace;font-size:12px}
+.odds__num{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:clamp(14px,1.15vw,18px);
+  font-variant-numeric:tabular-nums;
+  letter-spacing:.02em;
+}
+.odds__num.is-key{color:var(--tally);font-weight:600}
+.odds__ml{color:var(--text)}
+.odds__ml .fav{color:var(--tally);font-weight:600}
+.odds__none{color:var(--faint)}
+
+/* ---------- week list ---------- */
+.week{flex:1 1 auto;display:flex;flex-direction:column;gap:7px}
+.week__day{
+  font-family:"Barlow Condensed","Arial Narrow",sans-serif;
+  font-weight:700;
+  font-size:clamp(26px,2.4vw,40px);
+  letter-spacing:.045em;
+  line-height:1.05;
+  text-transform:uppercase;
+  color:var(--accent);
+  margin-top:12px;
+  padding-bottom:5px;
+  border-bottom:1px solid var(--line);
+}
+.week__day:first-child{margin-top:0}
+.week__row{
+  display:grid;
+  grid-template-columns:110px 1fr 150px 150px;
+  gap:14px;
+  align-items:center;
+  padding:8px 12px;
+  background:var(--panel);
+  border-radius:4px;
+}
+.week__time{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:13px;color:var(--tape);
+  font-variant-numeric:tabular-nums;
+}
+.week__who{
+  font-family:"Barlow Condensed","Arial Narrow",sans-serif;
+  font-weight:600;
+  font-size:clamp(17px,1.4vw,23px);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.week__lg,.week__tv{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.week__lg{color:var(--dim)}
+
+/* ---------- empty ---------- */
+.empty{
+  flex:1 1 auto;
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:12px;text-align:center;
+}
+.empty__big{
+  font-family:"Barlow Condensed","Arial Narrow",sans-serif;
+  font-weight:700;font-size:clamp(34px,4vw,64px);
+  letter-spacing:.04em;text-transform:uppercase;color:var(--faint);
+}
+.empty__sub{font-size:clamp(14px,1.2vw,19px);color:var(--dim);max-width:60ch}
+
+/* ---------- bottom rail ---------- */
+.rail{
+  flex:0 0 auto;
+  display:flex;align-items:center;gap:16px;
+  padding:9px var(--gutter);
+  border-top:1px solid var(--line);
+  background:#0C121C;
+}
+.rail__dots{display:flex;gap:7px;flex-wrap:wrap;flex:1 1 auto;min-width:0}
+.dot{
+  width:9px;height:9px;border-radius:50%;
+  background:var(--line);
+  flex:0 0 auto;
+  transition:background .3s,transform .3s;
+}
+.dot.is-on{background:var(--accent);transform:scale(1.34)}
+.dot.is-live{background:var(--tally)}
+.rail__meta{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--faint);
+  white-space:nowrap;
+}
+.bar{
+  position:absolute;left:0;bottom:0;height:3px;width:100%;
+  background:var(--accent);
+  transform-origin:0 50%;
+  transform:scaleX(0);
+}
+.rail{position:relative}
+.rail.is-paused .bar{background:var(--faint)}
+
+/* ---------- 900p / short panels tighten up ---------- */
+@media (max-height:940px){
+  :root{--gutter:clamp(12px,1.5vw,22px)}
+  .rack{padding:9px var(--gutter)}
+  .slide__head{margin-bottom:10px;padding-bottom:7px}
+  .grid{gap:10px}
+  .card{padding:11px 13px;gap:7px}
+  .row__logo{width:29px;height:29px}
+  .odds__row{padding:8px 13px}
+  .odds{gap:6px}
+  .week__row{padding:6px 11px}
+  .week{gap:5px}
+}
+</style>
+</head>
+<body class="kiosk">
+
+<header class="rack">
+  <div class="rack__id">
+    <span class="rack__eyebrow">Sportsboard</span>
+    <span class="rack__date" id="today">—</span>
+  </div>
+  <div class="tape">
+    <span class="tape__label">Behind live</span>
+    <span class="tape__offset" id="offset">—:—</span>
+  </div>
+  <div class="rack__right">
+    <span class="rack__clock" id="clock">--:--:--</span>
+    <span class="rack__signal" id="signal">Connecting</span>
+  </div>
+</header>
+
+<div class="warming" id="warming">
+  <span class="warming__dot"></span>
+  <span id="warmingText">Filling the delay buffer.</span>
+</div>
+
+<main class="stage" id="stage"></main>
+
+<footer class="rail" id="rail">
+  <div class="rail__dots" id="dots"></div>
+  <span class="rail__meta" id="railMeta"></span>
+  <div class="bar" id="bar"></div>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  var REFRESH_MS = 15000;    // how often we re-pull /api/board
+  var TICK_MS    = 100;      // slideshow clock granularity
+
+  // How long each kind of slide holds the screen.
+  var HOLD = {
+    live:  16000,
+    today: 14000,
+    final: 13000,
+    odds:  15000,
+    week:  15000,
+    empty: 12000
+  };
+
+  // Per-page capacity, and a ceiling on pages so one huge NFL Sunday
+  // can't stretch the loop to ten minutes. Anything dropped is counted
+  // and shown in the slide header rather than silently vanishing.
+  // today gets one fewer per page than final: its slot headers eat grid rows
+  var PER = { live: 4, today: 5, final: 6, odds: 8, week: 11 };
+  var MAXPAGES = { live: 2, today: 4, final: 3, odds: 3, week: 4 };
+
+  var deck = [];
+  var index = 0;
+  var elapsed = 0;
+  var paused = false;
+  var auto = true;
+  var renderedId = null;
+  var renderedSig = null;
+  var lastData = null;
+
+  /* ---------- small helpers ---------- */
+
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text !== undefined && text !== null) n.textContent = text;
+    return n;
+  }
+
+  function mmss(sec) {
+    sec = Math.max(0, Math.round(sec));
+    var m = Math.floor(sec / 60), s = sec % 60;
+    return m + ":" + (s < 10 ? "0" : "") + s;
+  }
+
+  function timeOf(epoch) {
+    if (!epoch) return "TBD";
+    return new Date(epoch * 1000)
+      .toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  }
+
+  function dayOf(epoch) {
+    if (!epoch) return "";
+    return new Date(epoch * 1000)
+      .toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+  }
+
+  function longDay(epoch) {
+    if (!epoch) return "Date TBD";
+    var d = new Date(epoch * 1000);
+    var now = new Date();
+    var t = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    var g = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    var days = Math.round((g - t) / 86400000);
+    var label = d.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
+    if (days === 0) return "Today — " + label;
+    if (days === 1) return "Tomorrow — " + label;
+    return label;
+  }
+
+  function logo(side) {
+    if (!side.logo) return null;
+    var img = document.createElement("img");
+    img.src = side.logo;
+    img.alt = "";
+    img.loading = "lazy";
+    img.onerror = function () { img.style.visibility = "hidden"; };
+    return img;
+  }
+
+  function chunk(list, size, maxPages) {
+    var pages = [];
+    for (var i = 0; i < list.length; i += size) pages.push(list.slice(i, i + size));
+    var dropped = 0;
+    if (maxPages && pages.length > maxPages) {
+      var kept = maxPages * size;
+      dropped = list.length - kept;
+      pages = pages.slice(0, maxPages);
+    }
+    return { pages: pages, dropped: dropped };
+  }
+
+  /* ---------- card builders ---------- */
+
+  function teamRow(side, other, state) {
+    var row = el("div", "row");
+    var mine = side.score === null || side.score === undefined ? null : parseInt(side.score, 10);
+    var theirs = other.score === null || other.score === undefined ? null : parseInt(other.score, 10);
+
+    if (state === "post" && mine !== null && theirs !== null) {
+      if (mine > theirs) row.classList.add("is-winner");
+      else if (mine < theirs) row.classList.add("is-loser");
+    }
+
+    var mark = logo(side);
+    if (mark) { mark.className = "row__logo"; row.appendChild(mark); }
+    if (side.rank) row.appendChild(el("span", "row__rank", "#" + side.rank));
+
+    row.appendChild(el("span", "row__name", side.name || "TBD"));
+    if (side.record && state === "pre") row.appendChild(el("span", "row__rec", side.record));
+
+    if (state !== "pre") {
+      var txt = (side.score === null || side.score === undefined) ? "–" : side.score;
+      if (side.shootout) txt = txt + " (" + side.shootout + ")";
+      row.appendChild(el("span", "row__score", txt));
+    }
+    return row;
+  }
+
+  function oddsBits(game) {
+    // Compact line summary for the face of a card.
+    var o = game.odds;
+    if (!o) return null;
+    var wrap = el("div", "card__line");
+    if (o.details) {
+      var s = el("span", null, "LINE ");
+      s.appendChild(el("b", null, o.details));
+      wrap.appendChild(s);
+    }
+    if (o.overUnder !== null && o.overUnder !== undefined) {
+      var t = el("span", null, "O/U ");
+      t.appendChild(el("b", null, String(o.overUnder)));
+      wrap.appendChild(t);
+    }
+    if (o.awayML && o.homeML) {
+      wrap.appendChild(el("span", null, "ML " + o.awayML + " / " + o.homeML));
+    }
+    return wrap.childNodes.length ? wrap : null;
+  }
+
+  function buildCard(game) {
+    var card = el("article", "card");
+    if (game.home.color) card.style.borderLeftColor = game.home.color;
+
+    var top = el("div", "card__top");
+    top.appendChild(el("span", "card__league", game.league));
+    if (game.broadcast) top.appendChild(el("span", null, game.broadcast));
+
+    var status = el("span", "card__status");
+    if (game.redacted) {
+      status.appendChild(el("span", "held", "HELD"));
+    } else if (game.state === "in") {
+      status.className = "card__status is-live";
+      status.textContent = (game.clock ? game.clock + "  " : "") + (game.detail || "LIVE");
+    } else if (game.state === "post") {
+      status.textContent = game.detail || "Final";
+    } else {
+      status.textContent = timeOf(game.start);
+    }
+    top.appendChild(status);
+    card.appendChild(top);
+
+    card.appendChild(teamRow(game.away, game.home, game.state));
+    card.appendChild(teamRow(game.home, game.away, game.state));
+
+    var line = oddsBits(game);
+    if (line) {
+      card.appendChild(line);
+    } else if (game.venue) {
+      card.appendChild(el("div", "card__meta", game.venue));
+    }
+    return card;
+  }
+
+  /* ---------- slide renderers ---------- */
+
+  function gridSlide(games, cols, grouped) {
+    var body = el("div", "slide__body");
+    var grid = el("div", "grid cols-" + cols);
+    var slot = null;
+    var step = 0;
+
+    games.forEach(function (g, i) {
+      if (grouped) {
+        var label = timeOf(g.start);
+        if (label !== slot) {
+          slot = label;
+          // how many share this kickoff, counting only what's on this page
+          var n = 0;
+          for (var j = i; j < games.length; j++) {
+            if (timeOf(games[j].start) !== label) break;
+            n++;
+          }
+          var head = el("div", "slot");
+          head.appendChild(el("span", "slot__time", label));
+          head.appendChild(el("span", "slot__count", n + (n === 1 ? " game" : " games")));
+          head.appendChild(el("span", "slot__rule"));
+          head.style.setProperty("--i", step++);
+          grid.appendChild(head);
+        }
+      }
+      var card = buildCard(g);
+      card.style.setProperty("--i", step++);
+      grid.appendChild(card);
+    });
+
+    body.appendChild(grid);
+    return body;
+  }
+
+  function oddsSlide(games) {
+    var body = el("div", "slide__body");
+    var table = el("div", "odds");
+
+    var head = el("div", "odds__head");
+    ["When", "Matchup", "Spread", "Moneyline", "Total"].forEach(function (h) {
+      head.appendChild(el("span", null, h));
+    });
+    table.appendChild(head);
+
+    games.forEach(function (g, i) {
+      var row = el("div", "odds__row");
+      row.style.setProperty("--i", i + 1);
+      var o = g.odds || {};
+
+      var when = g.state === "in" ? "LIVE"
+               : g.state === "post" ? "FINAL"
+               : (g.today ? timeOf(g.start) : dayOf(g.start) + " " + timeOf(g.start));
+      row.appendChild(el("span", "odds__when", when));
+
+      var match = el("div", "odds__match");
+      var a = logo(g.away); if (a) match.appendChild(a);
+      match.appendChild(el("span", null, g.away.abbr || g.away.name));
+      match.appendChild(el("span", "odds__at", "@"));
+      var h = logo(g.home); if (h) match.appendChild(h);
+      match.appendChild(el("span", null, g.home.abbr || g.home.name));
+      row.appendChild(match);
+
+      row.appendChild(el("span", "odds__num is-key", o.details || "—"));
+
+      var ml = el("span", "odds__num odds__ml");
+      if (o.awayML || o.homeML) {
+        var awaySpan = el("span", o.favorite && o.favorite === g.away.abbr ? "fav" : null,
+                          o.awayML || "—");
+        var homeSpan = el("span", o.favorite && o.favorite === g.home.abbr ? "fav" : null,
+                          o.homeML || "—");
+        ml.appendChild(awaySpan);
+        ml.appendChild(el("span", null, "  /  "));
+        ml.appendChild(homeSpan);
+      } else {
+        ml.className = "odds__num odds__none";
+        ml.textContent = "—";
+      }
+      row.appendChild(ml);
+
+      var ou = (o.overUnder === null || o.overUnder === undefined) ? "—" : String(o.overUnder);
+      row.appendChild(el("span", "odds__num", ou));
+
+      table.appendChild(row);
+    });
+
+    body.appendChild(table);
+    return body;
+  }
+
+  function weekSlide(games) {
+    var body = el("div", "slide__body");
+    var list = el("div", "week");
+    var currentDay = null;
+    var step = 0;
+
+    games.forEach(function (g) {
+      if (g.day !== currentDay) {
+        currentDay = g.day;
+        var head = el("div", "week__day", longDay(g.start));
+        head.style.setProperty("--i", step++);
+        list.appendChild(head);
+      }
+      var row = el("div", "week__row");
+      row.style.setProperty("--i", step++);
+      row.appendChild(el("span", "week__time", timeOf(g.start)));
+      row.appendChild(el("span", "week__who",
+        (g.away.name || "TBD") + "  v  " + (g.home.name || "TBD")));
+      row.appendChild(el("span", "week__lg", g.league));
+      row.appendChild(el("span", "week__tv", g.broadcast || ""));
+      list.appendChild(row);
+    });
+
+    body.appendChild(list);
+    return body;
+  }
+
+  function emptySlide(sub) {
+    var body = el("div", "slide__body");
+    var box = el("div", "empty");
+    box.appendChild(el("div", "empty__big", "No fixtures today"));
+    box.appendChild(el("div", "empty__sub", sub));
+    body.appendChild(box);
+    return body;
+  }
+
+  /* ---------- deck assembly ---------- */
+
+  function sigOf(kind, games) {
+    var parts = games.map(function (g) {
+      return g.id + ":" + g.state + ":" + g.away.score + "-" + g.home.score +
+             ":" + (g.clock || "") + ":" + (g.odds ? g.odds.details + "/" + g.odds.overUnder : "");
+    });
+    return kind + "|" + parts.join(",");
+  }
+
+  function addPages(out, kind, kicker, games, cols, liveFlag) {
+    if (!games.length) return;
+    var split = chunk(games, PER[kind], MAXPAGES[kind]);
+    split.pages.forEach(function (page, i) {
+      out.push({
+        id: kind + "-" + i,
+        kind: kind,
+        kicker: kicker,
+        live: !!liveFlag,
+        sub: subFor(kind, games.length, split.dropped),
+        page: i + 1,
+        pages: split.pages.length,
+        sig: sigOf(kind, page),
+        hold: HOLD[kind],
+        build: function () {
+          if (kind === "odds") return oddsSlide(page);
+          if (kind === "week") return weekSlide(page);
+          // today's slate reads best split by kickoff time
+          return gridSlide(page, cols, kind === "today");
+        }
+      });
+    });
+  }
+
+  function subFor(kind, total, dropped) {
+    var base = {
+      live:  total + " in progress",
+      today: total + " to come today",
+      final: total + " completed today",
+      odds:  "DraftKings · " + total + " with a line",
+      week:  total + " fixtures ahead"
+    }[kind] || "";
+    return dropped > 0 ? base + " · +" + dropped + " not shown" : base;
+  }
+
+  function buildDeck(data) {
+    var out = [];
+    var games = data.games || [];
+
+    var today = games.filter(function (g) { return g.today; });
+    var later = games.filter(function (g) { return !g.today && g.state === "pre"; });
+
+    var live = today.filter(function (g) { return g.state === "in"; });
+    var pre  = today.filter(function (g) { return g.state === "pre"; });
+    var post = today.filter(function (g) { return g.state === "post"; });
+
+    live.sort(function (a, b) { return (a.start || 0) - (b.start || 0); });
+    pre.sort(function (a, b)  { return (a.start || 0) - (b.start || 0); });
+    post.sort(function (a, b) { return (b.start || 0) - (a.start || 0); });
+    later.sort(function (a, b) { return (a.start || 0) - (b.start || 0); });
+
+    addPages(out, "live",  "Live now",      live, 2, true);
+    addPages(out, "today", "Today",         pre,  3, false);
+    addPages(out, "final", "Final today",   post, 3, false);
+
+    // Odds: everything still to play that actually carries a line,
+    // today first, then the rest of the week.
+    var priced = pre.concat(later).filter(function (g) { return !!g.odds; });
+    addPages(out, "odds", "Betting lines", priced, 0, false);
+
+    addPages(out, "week", "This week", later, 0, false);
+
+    if (!out.length) {
+      out.push({
+        id: "empty-0", kind: "empty", kicker: "Standby", live: false,
+        sub: "Nothing on the slate", page: 1, pages: 1,
+        sig: "empty|" + (data.warming ? "warm" : "cold"),
+        hold: HOLD.empty,
+        build: function () {
+          return emptySlide(data.warming
+            ? "Filling the delay buffer — the board unlocks shortly."
+            : "No fixtures found in the next week for any team on your list.");
+        }
+      });
+    }
+    return out;
+  }
+
+  /* ---------- presentation ---------- */
+
+  var stage = document.getElementById("stage");
+  var dotsBox = document.getElementById("dots");
+  var railMeta = document.getElementById("railMeta");
+  var bar = document.getElementById("bar");
+  var rail = document.getElementById("rail");
+
+  function paintDots() {
+    dotsBox.innerHTML = "";
+    for (var i = 0; i < deck.length; i++) {
+      var d = el("span", "dot");
+      if (deck[i].live) d.classList.add("is-live");
+      if (i === index) d.classList.add("is-on");
+      dotsBox.appendChild(d);
+    }
+    var s = deck[index];
+    railMeta.textContent = s
+      ? (index + 1) + " / " + deck.length + "   ·   " +
+        (paused ? "Paused" : auto ? "Auto" : "Manual") +
+        "   ·   space pause   ←→ move   f full   r refresh"
+      : "";
+  }
+
+  function showSlide(soft) {
+    var s = deck[index];
+    if (!s) return;
+    if (soft && s.id === renderedId && s.sig === renderedSig) {
+      paintDots();
+      return;                       // nothing changed; don't restart the hold
+    }
+
+    var node = el("section", "slide");
+    var head = el("div", "slide__head");
+    var kicker = el("h1", "slide__kicker" + (s.live ? " is-live" : ""), s.kicker);
+    head.appendChild(kicker);
+    head.appendChild(el("span", "slide__sub", s.sub));
+    if (s.pages > 1) {
+      head.appendChild(el("span", "slide__page", s.page + " of " + s.pages));
+    }
+    node.appendChild(head);
+    node.appendChild(s.build());
+
+    stage.innerHTML = "";
+    stage.appendChild(node);
+
+    renderedId = s.id;
+    renderedSig = s.sig;
+    if (!soft) elapsed = 0;
+    paintDots();
+  }
+
+  function go(step) {
+    if (!deck.length) return;
+    index = (index + step + deck.length) % deck.length;
+    elapsed = 0;
+    showSlide(false);
+  }
+
+  function applyDeck(next) {
+    var currentId = deck[index] ? deck[index].id : null;
+    deck = next;
+    var found = -1;
+    for (var i = 0; i < deck.length; i++) {
+      if (deck[i].id === currentId) { found = i; break; }
+    }
+    if (found >= 0) index = found;
+    else if (index >= deck.length) index = 0;
+    showSlide(true);
+  }
+
+  function tick() {
+    var s = deck[index];
+    if (!s) return;
+    if (!paused && auto && deck.length > 1) {
+      elapsed += TICK_MS;
+      if (elapsed >= s.hold) { go(1); return; }
+    }
+    var frac = (!auto || paused) ? 0 : Math.min(1, elapsed / s.hold);
+    bar.style.transform = "scaleX(" + frac + ")";
+    rail.className = paused || !auto ? "rail is-paused" : "rail";
+  }
+
+  /* ---------- data ---------- */
+
+  function render(data) {
+    lastData = data;
+
+    var warm = document.getElementById("warming");
+    warm.className = data.warming ? "warming is-on" : "warming";
+    if (data.warming) {
+      document.getElementById("warmingText").textContent =
+        "Filling the delay buffer — scores and lines unlock in " +
+        mmss(data.warmingRemaining) + ".";
+      document.getElementById("offset").textContent = "—:—";
+    } else if (data.snapshotTime) {
+      document.getElementById("offset").textContent =
+        "−" + mmss(data.serverTime - data.snapshotTime);
+    }
+
+    var signal = document.getElementById("signal");
+    if (data.errorCount > 0) {
+      signal.textContent = data.errorCount + " feed" + (data.errorCount > 1 ? "s" : "") + " down";
+      signal.className = "rack__signal is-warn";
+    } else {
+      signal.textContent = "Signal ok";
+      signal.className = "rack__signal";
+    }
+
+    applyDeck(buildDeck(data));
+  }
+
+  function offline() {
+    var signal = document.getElementById("signal");
+    signal.textContent = "No link to server";
+    signal.className = "rack__signal is-warn";
+    // last good deck stays on screen — never blank out
+  }
+
+  function pull() {
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", "/api/board?t=" + Date.now(), true);
+    xhr.timeout = 12000;
+    xhr.onload = function () {
+      if (xhr.status !== 200) return offline();
+      try { render(JSON.parse(xhr.responseText)); } catch (e) { offline(); }
+    };
+    xhr.onerror = offline;
+    xhr.ontimeout = offline;
+    xhr.send();
+  }
+
+  function tickClock() {
+    var now = new Date();
+    document.getElementById("clock").textContent =
+      now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    document.getElementById("today").textContent =
+      now.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
+  }
+
+  /* ---------- controls ---------- */
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "f") {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen();
+    }
+    if (e.key === "r") pull();
+    if (e.key === "c") document.body.classList.toggle("kiosk");
+    if (e.key === "s") { auto = !auto; elapsed = 0; paintDots(); }
+    if (e.key === " ") { e.preventDefault(); paused = !paused; paintDots(); }
+    if (e.key === "ArrowRight") { paused = false; go(1); }
+    if (e.key === "ArrowLeft")  { paused = false; go(-1); }
+  });
+
+  // A touch or click anywhere holds the current slide for a beat.
+  stage.addEventListener("click", function () { paused = !paused; paintDots(); });
+
+  tickClock();
+  setInterval(tickClock, 1000);
+  setInterval(tick, TICK_MS);
+  pull();
+  setInterval(pull, REFRESH_MS);
+})();
+</script>
+</body>
+</html>

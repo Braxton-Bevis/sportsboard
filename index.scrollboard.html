@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sportsboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ---------------------------------------------------------------
+   Sportsboard — broadcast delay rack
+   Palette: slate signal-room blue, amber tally, cyan timecode.
+   Team colours come from the feed, so the accent varies by fixture.
+   Motion is transform/opacity only — the Nano's GPU thanks you.
+----------------------------------------------------------------*/
+:root{
+  --ink:#0A0E16;
+  --panel:#141C29;
+  --panel-lift:#1A2433;
+  --line:#243244;
+  --text:#E9EFF6;
+  --dim:#7A8CA0;
+  --faint:#4E5F73;
+  --tally:#F5A524;
+  --tape:#5AC8DA;
+  --accent:#5AC8DA;
+  --accent2:#5AC8DA;
+  --gutter:clamp(16px,2vw,34px);
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--ink);
+  color:var(--text);
+  font-family:"Barlow","Helvetica Neue",sans-serif;
+  font-size:16px;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
+body.kiosk{cursor:none}
+
+/* ---------- header rack ---------- */
+.rack{
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  gap:var(--gutter);
+  padding:14px var(--gutter);
+  border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,#111925,#0C121C);
+}
+.rack__id{min-width:210px}
+.rack__eyebrow{
+  display:block;
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11px;
+  letter-spacing:.34em;
+  color:var(--faint);
+  text-transform:uppercase;
+}
+.rack__date{
+  font-family:"Barlow Condensed","Arial Narrow",sans-serif;
+  font-weight:700;
+  font-size:clamp(26px,2.6vw,40px);
+  letter-spacing:.02em;
+  line-height:1.05;
+  text-transform:uppercase;
+}
+
+/* the signature: a timecode tape showing how far behind live we are */
+.tape{flex:1 1 auto;display:flex;align-items:center;gap:14px;min-width:0}
+.tape__label{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11px;
+  letter-spacing:.24em;
+  color:var(--dim);
+  white-space:nowrap;
+}
+.tape__strip{
+  position:relative;
+  flex:1 1 auto;
+  height:30px;
+  border:1px solid var(--line);
+  border-radius:2px;
+  background:
+    repeating-linear-gradient(90deg,
+      rgba(90,200,218,.30) 0 1px,
+      transparent 1px 14px),
+    repeating-linear-gradient(90deg,
+      rgba(90,200,218,.55) 0 1px,
+      transparent 1px 70px),
+    #0D141F;
+  overflow:hidden;
+}
+.tape__head{
+  position:absolute;
+  top:-1px;bottom:-1px;left:0;
+  width:2px;
+  background:var(--tape);
+  animation:scrub 180s linear infinite;
+}
+.tape__head::after{
+  content:"";
+  position:absolute;
+  top:0;bottom:0;right:0;
+  width:64px;
+  background:linear-gradient(90deg,rgba(90,200,218,0),rgba(90,200,218,.22));
+}
+@keyframes scrub{from{transform:translateX(0)}to{transform:translateX(calc(100vw - 2px))}}
+.tape__offset{
+  font-family:"IBM Plex Mono",monospace;
+  font-weight:600;
+  font-size:20px;
+  color:var(--tape);
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+}
+
+.rack__meta{text-align:right;min-width:150px}
+.rack__clock{
+  font-family:"IBM Plex Mono",monospace;
+  font-weight:500;
+  font-size:26px;
+  font-variant-numeric:tabular-nums;
+  line-height:1.1;
+}
+.rack__signal{
+  display:block;
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11px;
+  letter-spacing:.18em;
+  color:var(--faint);
+  text-transform:uppercase;
+}
+.rack__signal.is-warn{color:var(--tally)}
+
+/* ---------- warming notice ---------- */
+.warming{
+  flex:0 0 auto;
+  display:none;
+  align-items:center;
+  gap:12px;
+  padding:10px var(--gutter);
+  background:rgba(245,165,36,.10);
+  border-bottom:1px solid rgba(245,165,36,.35);
+  font-family:"IBM Plex Mono",monospace;
+  font-size:13px;
+  letter-spacing:.08em;
+  color:var(--tally);
+}
+.warming.is-on{display:flex}
+
+/* ---------- board ---------- */
+.board{
+  flex:1 1 auto;
+  overflow-y:auto;
+  padding:var(--gutter) var(--gutter) 8px;
+}
+.block{margin-bottom:26px}
+.block[hidden]{display:none}
+.block__head{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin-bottom:12px;
+  font-family:"IBM Plex Mono",monospace;
+  font-size:12px;
+  font-weight:600;
+  letter-spacing:.28em;
+  text-transform:uppercase;
+  color:var(--dim);
+}
+.block__head::after{
+  content:"";
+  flex:1 1 auto;
+  height:1px;
+  background:var(--line);
+}
+.block__count{
+  font-variant-numeric:tabular-nums;
+  color:var(--faint);
+  letter-spacing:.1em;
+}
+.tally{
+  width:10px;height:10px;
+  border-radius:1px;
+  background:var(--tally);
+  animation:tally 2.4s ease-in-out infinite;
+}
+@keyframes tally{0%,100%{opacity:1}50%{opacity:.25}}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(360px,1fr));
+  gap:12px;
+}
+
+/* ---------- fixture card ---------- */
+.card{
+  position:relative;
+  padding:12px 16px 10px 20px;
+  background:linear-gradient(180deg,var(--panel-lift),var(--panel));
+  border:1px solid var(--line);
+  border-radius:3px;
+  animation:drop .34s ease both;
+}
+@keyframes drop{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.card::before{
+  content:"";
+  position:absolute;
+  left:0;top:0;bottom:0;
+  width:4px;
+  background:linear-gradient(180deg,var(--accent) 0 50%,var(--accent2) 50% 100%);
+}
+.card--final{opacity:.62}
+.card--live{
+  border-color:rgba(245,165,36,.34);
+  background:linear-gradient(180deg,#1F2739,#161F2C);
+}
+
+.card__top{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:8px;
+}
+.card__league{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:10.5px;
+  letter-spacing:.2em;
+  color:var(--faint);
+  text-transform:uppercase;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.card__status{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-family:"IBM Plex Mono",monospace;
+  font-size:13px;
+  font-weight:500;
+  color:var(--dim);
+  white-space:nowrap;
+}
+.card--live .card__status{color:var(--tally)}
+
+.row{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:5px 0;
+}
+.row + .row{border-top:1px solid rgba(36,50,68,.6)}
+.row__logo{
+  width:30px;height:30px;
+  object-fit:contain;
+  flex:0 0 auto;
+}
+.row__rank{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:12px;
+  font-weight:600;
+  color:var(--tally);
+  flex:0 0 auto;
+}
+.row__name{
+  flex:1 1 auto;
+  font-family:"Barlow Condensed","Arial Narrow",sans-serif;
+  font-weight:600;
+  font-size:clamp(19px,1.32vw,24px);
+  line-height:1.1;
+  letter-spacing:.01em;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.row__record{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11px;
+  color:var(--faint);
+  flex:0 0 auto;
+}
+.row__score{
+  font-family:"IBM Plex Mono",monospace;
+  font-weight:600;
+  font-size:clamp(22px,1.9vw,32px);
+  font-variant-numeric:tabular-nums;
+  color:var(--text);
+  flex:0 0 auto;
+  min-width:1.6em;
+  text-align:right;
+}
+.row__score.is-hidden{color:var(--faint)}
+.row.is-loser .row__name,
+.row.is-loser .row__score{color:var(--dim)}
+.row__score.bump{animation:bump .7s ease}
+@keyframes bump{
+  0%{transform:scale(1)}
+  25%{transform:scale(1.28);color:var(--tally)}
+  100%{transform:scale(1)}
+}
+
+.card__foot{
+  margin-top:6px;
+  font-size:12px;
+  color:var(--faint);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+/* ---------- empty state ---------- */
+.empty{
+  padding:60px 0;
+  max-width:640px;
+}
+.empty__head{
+  font-family:"Barlow Condensed","Arial Narrow",sans-serif;
+  font-weight:700;
+  font-size:clamp(34px,4vw,54px);
+  text-transform:uppercase;
+  line-height:1.05;
+}
+.empty__sub{margin-top:10px;color:var(--dim);font-size:17px}
+
+/* ---------- ticker ---------- */
+.ticker{
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  height:44px;
+  border-top:1px solid var(--line);
+  background:#0C121C;
+  overflow:hidden;
+}
+.ticker__tag{
+  flex:0 0 auto;
+  align-self:stretch;
+  display:flex;
+  align-items:center;
+  padding:0 16px;
+  background:var(--tape);
+  color:#06202A;
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11px;
+  font-weight:600;
+  letter-spacing:.2em;
+}
+.ticker__window{flex:1 1 auto;overflow:hidden;white-space:nowrap}
+.ticker__track{
+  display:inline-block;
+  padding-left:100%;
+  animation:roll 70s linear infinite;
+}
+@keyframes roll{from{transform:translateX(0)}to{transform:translateX(-100%)}}
+.ticker__item{
+  display:inline-block;
+  padding:0 30px;
+  font-size:15px;
+  color:var(--dim);
+}
+.ticker__when{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:12px;
+  color:var(--tape);
+  margin-right:9px;
+  letter-spacing:.06em;
+}
+.ticker__who{color:var(--text);font-weight:500}
+
+::-webkit-scrollbar{width:8px}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
+::-webkit-scrollbar-track{background:transparent}
+
+/* 20in / 900px-class panels: tighten everything so more of the day fits */
+@media (max-height:940px){
+  .rack{padding:9px var(--gutter)}
+  .rack__date{font-size:clamp(22px,2.1vw,32px)}
+  .rack__clock{font-size:22px}
+  .tape__strip{height:24px}
+  .board{padding-top:14px}
+  .block{margin-bottom:18px}
+  .block__head{margin-bottom:9px}
+  .card{padding:9px 14px 8px 18px}
+  .card__top{margin-bottom:5px}
+  .row{padding:3px 0}
+  .row__logo{width:26px;height:26px}
+  .card__foot{margin-top:4px;font-size:11px}
+  .ticker{height:38px}
+}
+
+@media (prefers-reduced-motion: reduce){
+  .tape__head,.ticker__track,.tally{animation:none}
+  .card{animation:none}
+  .row__score.bump{animation:none}
+}
+</style>
+</head>
+<body>
+
+<header class="rack">
+  <div class="rack__id">
+    <span class="rack__eyebrow">Sportsboard</span>
+    <h1 class="rack__date" id="today">—</h1>
+  </div>
+
+  <div class="tape">
+    <span class="tape__label">Behind live</span>
+    <span class="tape__strip"><span class="tape__head"></span></span>
+    <span class="tape__offset" id="offset">−3:00</span>
+  </div>
+
+  <div class="rack__meta">
+    <div class="rack__clock" id="clock">--:--:--</div>
+    <span class="rack__signal" id="signal">Connecting</span>
+  </div>
+</header>
+
+<div class="warming" id="warming">
+  <span class="tally"></span>
+  <span id="warmingText">Filling the delay buffer. Scores stay hidden until it's full.</span>
+</div>
+
+<main class="board">
+  <section class="block" id="block-live" hidden>
+    <h2 class="block__head"><span class="tally"></span>Live now<span class="block__count" id="count-live"></span></h2>
+    <div class="grid" id="grid-live"></div>
+  </section>
+
+  <section class="block" id="block-pre" hidden>
+    <h2 class="block__head">Starting today<span class="block__count" id="count-pre"></span></h2>
+    <div class="grid" id="grid-pre"></div>
+  </section>
+
+  <section class="block" id="block-post" hidden>
+    <h2 class="block__head">Finished today<span class="block__count" id="count-post"></span></h2>
+    <div class="grid" id="grid-post"></div>
+  </section>
+
+  <div class="empty" id="empty" hidden>
+    <p class="empty__head" id="emptyHead">Nothing on today</p>
+    <p class="empty__sub" id="emptySub"></p>
+  </div>
+</main>
+
+<footer class="ticker">
+  <span class="ticker__tag">Coming up</span>
+  <span class="ticker__window"><span class="ticker__track" id="ticker"></span></span>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  var REFRESH_MS = 15000;
+  var cards = {};        // game id -> element, so animations survive refreshes
+  var lastScores = {};   // game id -> "home-away", to flash only real changes
+  var tickerKey = "";
+
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text !== undefined && text !== null) n.textContent = text;
+    return n;
+  }
+
+  function timeOf(epoch) {
+    if (!epoch) return "TBD";
+    return new Date(epoch * 1000).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  }
+
+  function dayOf(epoch) {
+    return new Date(epoch * 1000).toLocaleDateString([], { weekday: "short" }).toUpperCase();
+  }
+
+  function mmss(seconds) {
+    var s = Math.max(0, Math.round(seconds));
+    var m = Math.floor(s / 60);
+    return m + ":" + ("0" + (s % 60)).slice(-2);
+  }
+
+  /* ---------- card construction ---------- */
+
+  function buildSide(side, game) {
+    var row = el("div", "row");
+
+    if (side.logo) {
+      var img = el("img", "row__logo");
+      img.src = side.logo;
+      img.alt = "";
+      img.onerror = function () { this.style.visibility = "hidden"; };
+      row.appendChild(img);
+    } else {
+      row.appendChild(el("span", "row__logo"));
+    }
+
+    if (side.rank) row.appendChild(el("span", "row__rank", "#" + side.rank));
+    row.appendChild(el("span", "row__name", side.name));
+    if (side.record && game.state === "pre") row.appendChild(el("span", "row__record", side.record));
+
+    var score = el("span", "row__score");
+    if (game.state === "pre") {
+      score.textContent = "";
+    } else if (side.score === null || side.score === undefined) {
+      score.textContent = "··";
+      score.className = "row__score is-hidden";
+    } else {
+      score.textContent = side.score;
+    }
+    row.appendChild(score);
+
+    if (game.state === "post" && side.winner === false) row.className = "row is-loser";
+    return row;
+  }
+
+  function statusText(game) {
+    if (game.redacted) return "Hidden";
+    if (game.state === "pre") return timeOf(game.start);
+    if (game.state === "in") {
+      if (game.clock && game.period) return "P" + game.period + " · " + game.clock;
+      return game.detail || "Live";
+    }
+    return game.detail || "Final";
+  }
+
+  function buildCard(game) {
+    var card = el("article", "card card--" + game.state);
+    card.style.setProperty("--accent", game.away.color || "#3E5064");
+    card.style.setProperty("--accent2", game.home.color || "#3E5064");
+
+    var top = el("div", "card__top");
+    top.appendChild(el("span", "card__league", game.league));
+    var status = el("span", "card__status");
+    if (game.state === "in" && !game.redacted) status.appendChild(el("span", "tally"));
+    status.appendChild(el("span", null, statusText(game)));
+    top.appendChild(status);
+    card.appendChild(top);
+
+    card.appendChild(buildSide(game.away, game));
+    card.appendChild(buildSide(game.home, game));
+
+    var foot = [game.broadcast, game.venue].filter(Boolean).join(" · ");
+    if (foot) card.appendChild(el("div", "card__foot", foot));
+
+    return card;
+  }
+
+  function flashScores(card) {
+    var nodes = card.querySelectorAll(".row__score");
+    for (var i = 0; i < nodes.length; i++) {
+      (function (n) {
+        n.classList.remove("bump");
+        void n.offsetWidth;      // restart the animation
+        n.classList.add("bump");
+      })(nodes[i]);
+    }
+  }
+
+  function fillSection(sectionId, gridId, countId, games) {
+    var section = document.getElementById(sectionId);
+    var grid = document.getElementById(gridId);
+    section.hidden = games.length === 0;
+    document.getElementById(countId).textContent = games.length ? games.length : "";
+
+    var wanted = {};
+    games.forEach(function (game) {
+      wanted[game.id] = true;
+      var key = game.away.score + "-" + game.home.score + "-" + game.state;
+      var existing = cards[game.id];
+      var fresh = buildCard(game);
+
+      if (existing && existing.parentNode === grid) {
+        if (lastScores[game.id] === key) fresh.style.animation = "none";
+        grid.replaceChild(fresh, existing);
+        if (lastScores[game.id] !== key && game.state !== "pre") flashScores(fresh);
+      } else {
+        // new game, or one that just moved between sections
+        if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+        grid.appendChild(fresh);
+      }
+      cards[game.id] = fresh;
+      lastScores[game.id] = key;
+    });
+
+    // drop anything that left this section
+    Object.keys(cards).forEach(function (id) {
+      var node = cards[id];
+      if (node.parentNode === grid && !wanted[id]) {
+        grid.removeChild(node);
+        delete cards[id];
+      }
+    });
+  }
+
+  function fillTicker(games) {
+    var key = games.map(function (g) { return g.id; }).join(",");
+    if (key === tickerKey) return;   // don't restart the scroll for no reason
+    tickerKey = key;
+
+    var track = document.getElementById("ticker");
+    track.innerHTML = "";
+    if (!games.length) {
+      track.appendChild(el("span", "ticker__item", "No fixtures scheduled in the next week."));
+      return;
+    }
+    games.forEach(function (g) {
+      var item = el("span", "ticker__item");
+      item.appendChild(el("span", "ticker__when", dayOf(g.start) + " " + timeOf(g.start)));
+      item.appendChild(el("span", "ticker__who", g.away.name + " v " + g.home.name));
+      item.appendChild(el("span", null, "  " + g.league));
+      track.appendChild(item);
+    });
+  }
+
+  /* ---------- data ---------- */
+
+  function render(data) {
+    var today = data.games.filter(function (g) { return g.today; });
+    var later = data.games.filter(function (g) { return !g.today && g.state === "pre"; });
+
+    var live = today.filter(function (g) { return g.state === "in"; });
+    var pre = today.filter(function (g) { return g.state === "pre"; });
+    var post = today.filter(function (g) { return g.state === "post"; });
+
+    live.sort(function (a, b) { return a.start - b.start; });
+    pre.sort(function (a, b) { return a.start - b.start; });
+    post.sort(function (a, b) { return b.start - a.start; });
+    later.sort(function (a, b) { return a.start - b.start; });
+
+    fillSection("block-live", "grid-live", "count-live", live);
+    fillSection("block-pre", "grid-pre", "count-pre", pre);
+    fillSection("block-post", "grid-post", "count-post", post);
+    fillTicker(later.slice(0, 30));
+
+    var empty = document.getElementById("empty");
+    empty.hidden = today.length > 0;
+    if (!today.length) {
+      document.getElementById("emptySub").textContent = later.length
+        ? "Next up: " + later[0].away.name + " v " + later[0].home.name + ", " +
+          dayOf(later[0].start) + " " + timeOf(later[0].start) + "."
+        : "No fixtures found in the next week for any team on your list.";
+    }
+
+    var warm = document.getElementById("warming");
+    warm.className = data.warming ? "warming is-on" : "warming";
+    if (data.warming) {
+      document.getElementById("warmingText").textContent =
+        "Filling the delay buffer — scores unlock in " + mmss(data.warmingRemaining) + ".";
+      document.getElementById("offset").textContent = "—:—";
+    } else if (data.snapshotTime) {
+      document.getElementById("offset").textContent =
+        "−" + mmss(data.serverTime - data.snapshotTime);
+    }
+
+    var signal = document.getElementById("signal");
+    if (data.errorCount > 0) {
+      signal.textContent = data.errorCount + " feed" + (data.errorCount > 1 ? "s" : "") + " down";
+      signal.className = "rack__signal is-warn";
+    } else {
+      signal.textContent = "Signal ok";
+      signal.className = "rack__signal";
+    }
+  }
+
+  function pull() {
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", "/api/board?t=" + Date.now(), true);
+    xhr.timeout = 12000;
+    xhr.onload = function () {
+      if (xhr.status !== 200) return offline();
+      try { render(JSON.parse(xhr.responseText)); } catch (e) { offline(); }
+    };
+    xhr.onerror = offline;
+    xhr.ontimeout = offline;
+    xhr.send();
+  }
+
+  function offline() {
+    var signal = document.getElementById("signal");
+    signal.textContent = "No link to server";
+    signal.className = "rack__signal is-warn";
+  }
+
+  function tickClock() {
+    var now = new Date();
+    document.getElementById("clock").textContent =
+      now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    document.getElementById("today").textContent =
+      now.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" });
+  }
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "f") {
+      if (document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen();
+    }
+    if (e.key === "r") pull();
+    if (e.key === "c") document.body.classList.toggle("kiosk");
+    if (e.key === "s") { creep.on = !creep.on; creep.hold = 0; }
+  });
+
+  /* ---------- gentle auto-scroll when the day overflows the screen ---------- */
+
+  var creep = { on: true, dir: 1, hold: 0, last: 0 };
+  var board = document.querySelector(".board");
+  var still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  board.addEventListener("wheel", function () { creep.hold = Date.now() + 30000; });
+  board.addEventListener("touchstart", function () { creep.hold = Date.now() + 30000; });
+
+  function drift(now) {
+    requestAnimationFrame(drift);
+    var dt = creep.last ? (now - creep.last) : 0;
+    creep.last = now;
+
+    if (!creep.on || still || Date.now() < creep.hold) return;
+    var slack = board.scrollHeight - board.clientHeight;
+    if (slack < 12) return;
+
+    board.scrollTop += creep.dir * (dt * 0.022);   // ~22px per second
+
+    if (creep.dir > 0 && board.scrollTop >= slack - 1) {
+      creep.dir = -1; creep.hold = Date.now() + 7000;
+    } else if (creep.dir < 0 && board.scrollTop <= 1) {
+      creep.dir = 1; creep.hold = Date.now() + 7000;
+    }
+  }
+  requestAnimationFrame(drift);
+
+  tickClock();
+  setInterval(tickClock, 1000);
+  pull();
+  setInterval(pull, REFRESH_MS);
+})();
+</script>
+</body>
+</html>
