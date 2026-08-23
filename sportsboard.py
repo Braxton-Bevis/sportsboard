@@ -162,9 +162,23 @@ def matches(feed, home, away):
     keys = feed.get("teams", "*")
     if keys == "*":
         return True
-    hay = " | ".join([home["full"], home["name"], home["abbr"],
-                      away["full"], away["name"], away["abbr"]]).lower()
-    return any(k.lower() in hay for k in keys)
+
+    fields = [home["full"], home["name"], home["abbr"],
+              away["full"], away["name"], away["abbr"]]
+    hay = " | ".join(fields).lower()
+    exact = set(f.strip().lower() for f in fields if f)
+
+    for k in keys:
+        k = k.lower()
+        # "=alabama" means the whole team name, not a substring. Needed where
+        # one school's name sits inside another's -- plain "alabama" would
+        # otherwise drag in Alabama State and South Alabama as well.
+        if k.startswith("="):
+            if k[1:].strip() in exact:
+                return True
+        elif k in hay:
+            return True
+    return False
 
 
 def normalise(feed, payload):
@@ -228,6 +242,74 @@ def normalise(feed, payload):
 # ----------------------------------------------------------------------------
 
 
+# ----------------------------------------------------------------------------
+# Alabama football
+#
+# The scoreboard feeds only reach days_ahead into the future, so out of season
+# - or during a bye - the next Bama game falls outside the window entirely and
+# simply isn't in the data. This pulls the team's own schedule so the marquee
+# slide always has a game to show, however far off it is.
+# ----------------------------------------------------------------------------
+
+BAMA_TEAM_ID = "333"        # Alabama Crimson Tide, ESPN's college-football id
+BAMA_URL = ("https://site.api.espn.com/apis/site/v2/sports/football/"
+            "college-football/teams/{}/schedule".format(BAMA_TEAM_ID))
+
+
+def fetch_bama_next():
+    """The next scheduled (or in-progress) Alabama football game, or None."""
+    req = urllib.request.Request(BAMA_URL, headers={"User-Agent": CFG["user_agent"]})
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        payload = json.loads(resp.read().decode("utf-8"))
+
+    now = time.time()
+    best = None
+    for ev in payload.get("events") or []:
+        comp = (ev.get("competitions") or [{}])[0]
+        start = parse_iso(ev.get("date"))
+        state = ((comp.get("status") or {}).get("type") or {}).get("state") or "pre"
+        # keep anything still to come, plus anything currently running
+        if state == "in" or (start and start >= now - 4 * 3600):
+            if best is None or (start or 0) < (best[0] or 0):
+                best = (start, ev, comp, state)
+
+    if not best:
+        return None
+    start, ev, comp, state = best
+
+    entries = comp.get("competitors") or []
+    home = away = None
+    for c in entries:
+        if c.get("homeAway") == "away":
+            away = side(c)
+        else:
+            home = side(c)
+    if not home or not away:
+        if len(entries) < 2:
+            return None
+        home, away = side(entries[0]), side(entries[1])
+
+    broadcast = ""
+    for b in (comp.get("broadcasts") or []):
+        names = b.get("names") or []
+        if names:
+            broadcast = names[0]
+            break
+
+    return {
+        "id": "bama-next-" + str(ev.get("id") or ""),
+        "league": "ALABAMA FOOTBALL",
+        "start": start,
+        "state": state,
+        "home": home,
+        "away": away,
+        "venue": (((comp.get("venue") or {}).get("fullName")) or ""),
+        "broadcast": broadcast,
+        "odds": odds_of(comp),
+        "detail": ((comp.get("status") or {}).get("type") or {}).get("shortDetail") or "",
+    }
+
+
 class Board(object):
     def __init__(self):
         self.lock = threading.Lock()
@@ -237,6 +319,8 @@ class Board(object):
         self.buffer = deque()    # (wall_clock, snapshot list)
         self.started = time.time()
         self.last_success = None
+        self.bama = None         # next Alabama football game
+        self.bama_due = 0
 
     def hot(self, key):
         """A feed is hot if it has a game today or in progress."""
@@ -274,6 +358,17 @@ class Board(object):
             key = feed["key"]
             gap = CFG["poll_seconds"] if self.hot(key) else CFG["cold_poll_seconds"]
             self.due[key] = after + gap
+
+        # Alabama's own schedule, refreshed rarely - it only changes between
+        # games, and a failure here must never take the rest of the board down.
+        if time.monotonic() >= self.bama_due:
+            try:
+                nxt = fetch_bama_next()
+                with self.lock:
+                    self.bama = nxt
+            except Exception as exc:
+                sys.stderr.write("bama schedule fetch failed: {}\n".format(exc))
+            self.bama_due = time.monotonic() + 600
 
         with self.lock:
             snapshot = []
@@ -342,8 +437,29 @@ def build_response():
         g["day"] = time.strftime("%Y-%m-%d", time.localtime(g["start"])) if g["start"] else ""
         g["today"] = (g["day"] == today)
 
+    # The marquee Alabama football game. Prefer the copy inside the delayed
+    # snapshot when the game is close enough to be in the normal feeds, since
+    # that one has already been through the spoiler delay. Only fall back to
+    # the schedule fetch when it isn't there - and that is always a future
+    # fixture with no score to give away.
+    bama = None
+    for g in snapshot:
+        names = (g["home"].get("full", "") + " " + g["away"].get("full", "")).lower()
+        if "crimson tide" in names:
+            if bama is None or (g["start"] or 0) < (bama["start"] or 0):
+                bama = g
+    if bama is None:
+        with BOARD.lock:
+            bama = json.loads(json.dumps(BOARD.bama)) if BOARD.bama else None
+        if bama and warming:
+            bama = redact(bama)
+    if bama:
+        bama["day"] = time.strftime("%Y-%m-%d", time.localtime(bama["start"])) if bama["start"] else ""
+        bama["today"] = (bama["day"] == today)
+
     elapsed = time.time() - BOARD.started
     return {
+        "bama": bama,
         "serverTime": time.time(),
         "snapshotTime": ts,
         "delaySeconds": CFG["delay_seconds"],

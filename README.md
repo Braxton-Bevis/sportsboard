@@ -39,6 +39,62 @@ network at `http://<nano-ip>:8080`.
 Keyboard: `f` fullscreen, `r` force refresh, `c` toggle the mouse cursor,
 `s` toggle auto-scroll.
 
+## The slide deck
+
+The board is a loop of slides rather than one long scroll. What the deck holds,
+in order:
+
+| Slide | What's on it |
+|---|---|
+| **Next Alabama football** | Always first, always present. See below. |
+| **Live now** | Anything in progress, across every sport, four to a slide |
+| **One page per competition** | Today's slate filed by league — NFL, MLB, MLS, LaLiga, each its own page |
+| **Betting lines** | Two per slide, sized large, shown as win probability |
+| **This week** | One slide per calendar day |
+
+Slides hold for 10–16 seconds, shorter when they carry a single fixture. A slide
+takes at most four fixtures; a bucket with more becomes more slides rather than
+smaller type, and cards scale up as the count drops — a lone game fills the panel.
+
+### Next Alabama football
+
+![Alabama football slide](docs/slide-alabama-football.png)
+
+Alabama football gets a permanent slide at the front of the deck: opponent,
+kickoff, venue, broadcast, and the line once one is posted.
+
+This can't be a filter over the slate. The scoreboard feeds only reach
+`days_ahead` into the future, so out of season — or on a bye — the next game
+simply isn't in the data. The server fetches Alabama's own team schedule
+(ESPN team id `333`) on a ten-minute cycle and hands it to the board as `bama`.
+
+When the game *is* close enough to appear in the SEC feed, the delayed copy from
+the normal snapshot wins, so the spoiler delay still applies. The schedule
+fallback only ever supplies future fixtures, which have no score to give away.
+
+### Betting lines
+
+![Betting lines slide](docs/slide-betting-lines.png)
+
+Two lines a slide so the numbers stay readable across a room. Moneylines are
+converted to **implied win probability** rather than shown as American odds:
+
+    -270  ->  270 / (270 + 100)  =  73.0%
+    +650  ->  100 / (650 + 100)  =  13.3%
+
+Those include the book's margin, so the two sides of a game sum to a little over
+100%. That overround is the vig, not a rounding bug.
+
+A slide carrying one line holds for 5 seconds; two holds for 10.
+
+### One page per competition
+
+![League page](docs/slide-league-page.png)
+
+Today's games are grouped by competition instead of being lumped into "today"
+and "final". Busiest competition leads, and inside one, still-to-play sits above
+finished.
+
 ## On a 20in 1080p / 900p panel
 
 Tuned for it. Below 940px tall the header, cards and ticker tighten up so live,
@@ -108,6 +164,16 @@ how SEC football and the NFL are set up.
 Matching is a case-insensitive substring test against both teams' names, so
 `"nashville"` catches Nashville SC and `"real madrid"` won't catch Real Betis.
 Add `"enabled": false` to park a competition without deleting it.
+
+Prefix a fragment with `=` to demand the whole team name instead of a substring:
+
+```json
+{ "key": "bama-wsoc", "label": "BAMA W SOCCER", "path": "soccer/usa.ncaa.w.1", "teams": ["=alabama"] }
+```
+
+That matters where one school's name sits inside another's. In women's college
+soccer ESPN calls the team plain `Alabama`, so a substring match would also drag
+in Alabama State and South Alabama; `=alabama` keeps only the Tide.
 
 Other settings:
 

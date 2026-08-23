@@ -18,9 +18,22 @@
     { "key": "nfl",        "label": "NFL",              "path": "football/nfl", "teams": "*" },
 
     { "key": "mlb",        "label": "MLB",              "path": "baseball/mlb",
-      "teams": ["los angeles dodgers", "pittsburgh pirates"] },
+      "teams": ["los angeles dodgers", "pittsburgh pirates", "philadelphia phillies", "seattle mariners"] },
 
-    { "key": "mls",        "label": "MLS",              "path": "soccer/usa.1",  "teams": ["nashville", "inter miami"] },
+    { "key": "bama-wsoc",  "label": "BAMA W SOCCER",    "path": "soccer/usa.ncaa.w.1",
+      "teams": ["=alabama"] },
+
+    { "key": "nhl",        "label": "NHL",              "path": "hockey/nhl",
+      "teams": ["seattle kraken", "pittsburgh penguins", "philadelphia flyers"] },
+    { "key": "nba",        "label": "NBA",              "path": "basketball/nba",
+      "teams": ["philadelphia 76ers"] },
+
+    { "key": "big-ten",    "label": "BIG TEN",          "path": "football/college-football", "query": "groups=5",
+      "teams": ["penn state", "washington huskies"] },
+    { "key": "acc",        "label": "ACC",              "path": "football/college-football", "query": "groups=1",
+      "teams": ["pittsburgh panthers"] },
+
+    { "key": "mls",        "label": "MLS",              "path": "soccer/usa.1",  "teams": ["nashville", "inter miami", "seattle sounders", "philadelphia union"] },
     { "key": "epl",        "label": "PREMIER LEAGUE",   "path": "soccer/eng.1",  "teams": ["manchester city"] },
     { "key": "laliga",     "label": "LALIGA",           "path": "soccer/esp.1",  "teams": ["barcelona", "real madrid"] },
     { "key": "brasil",     "label": "BRASILEIRÃO",      "path": "soccer/bra.1",  "teams": ["flamengo"] },

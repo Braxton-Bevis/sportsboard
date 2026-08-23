@@ -195,6 +195,19 @@ body.kiosk{cursor:none}
 .grid.cols-2{grid-template-columns:repeat(2,1fr)}
 .grid.cols-3{grid-template-columns:repeat(3,1fr)}
 
+/* ---------- scale to how many are actually on the slide ----------
+   The deck caps a slide at four fixtures, but most slides carry fewer.
+   Rather than leave a lone game marooned in a corner, the grid reflows
+   and the type steps up as the count drops. --cs is a scale multiplier
+   the card rules below hang off, so one knob drives the whole card. */
+.slide[data-count="1"] .grid{--cs:1.75;grid-template-columns:1fr;align-content:center}
+.slide[data-count="2"] .grid{--cs:1.35;grid-template-columns:1fr;align-content:center}
+.slide[data-count="3"] .grid{--cs:1.12;grid-template-columns:repeat(2,1fr)}
+.slide[data-count="4"] .grid{--cs:1;grid-template-columns:repeat(2,1fr)}
+/* a lone card shouldn't stretch the full width of a 16:9 panel */
+.slide[data-count="1"] .grid > *{max-width:78%;margin:0 auto;width:100%}
+.slide[data-count="2"] .grid > *{max-width:92%;margin:0 auto;width:100%}
+
 /* staggered entrance — each item leans in a beat after the one before it.
    transform/opacity only, so the Nano stays on the compositor. */
 .grid > *,.odds__row,.week__row,.week__day{
@@ -243,10 +256,10 @@ body.kiosk{cursor:none}
   border:1px solid var(--line);
   border-left:5px solid var(--accent);
   border-radius:6px;
-  padding:14px 16px;
+  padding:calc(14px * var(--cs,1)) calc(16px * var(--cs,1));
   display:flex;
   flex-direction:column;
-  gap:10px;
+  gap:calc(10px * var(--cs,1));
   min-height:0;
 }
 .card__top{
@@ -263,9 +276,9 @@ body.kiosk{cursor:none}
 .card__status{margin-left:auto;color:var(--text);white-space:nowrap}
 .card__status.is-live{color:var(--tally);font-weight:600}
 
-.row{display:flex;align-items:center;gap:11px}
+.row{display:flex;align-items:center;gap:calc(11px * var(--cs,1))}
 .row__logo{
-  width:34px;height:34px;flex:0 0 auto;
+  width:calc(34px * var(--cs,1));height:calc(34px * var(--cs,1));flex:0 0 auto;
   object-fit:contain;
 }
 .row__rank{
@@ -275,7 +288,7 @@ body.kiosk{cursor:none}
 .row__name{
   font-family:"Barlow Condensed","Arial Narrow",sans-serif;
   font-weight:600;
-  font-size:clamp(19px,1.65vw,27px);
+  font-size:calc(clamp(19px,1.65vw,27px) * var(--cs,1));
   line-height:1.08;
   letter-spacing:.01em;
   white-space:nowrap;
@@ -291,7 +304,7 @@ body.kiosk{cursor:none}
 .row__score{
   font-family:"Barlow Condensed","Arial Narrow",sans-serif;
   font-weight:700;
-  font-size:clamp(28px,2.9vw,46px);
+  font-size:calc(clamp(28px,2.9vw,46px) * var(--cs,1));
   line-height:1;
   font-variant-numeric:tabular-nums;
   flex:0 0 auto;
@@ -376,6 +389,121 @@ body.kiosk{cursor:none}
 .odds__ml{color:var(--text)}
 .odds__ml .fav{color:var(--tally);font-weight:600}
 .odds__none{color:var(--faint)}
+
+/* ---------- betting lines, sized up ----------
+   Only two lines to a slide now, so they get the whole panel. The rows
+   centre vertically and every figure grows — the numbers are the point
+   of this slide, so they should read from across the room. */
+.slide[data-kind="odds"] .odds{justify-content:center;gap:18px}
+.slide[data-kind="odds"] .odds__row{
+  padding:22px 20px;
+  border-radius:8px;
+  border-left:5px solid var(--accent);
+}
+.slide[data-kind="odds"] .odds__head{font-size:13px;padding-bottom:10px}
+.slide[data-kind="odds"] .odds__when{font-size:16px}
+.slide[data-kind="odds"] .odds__match{font-size:clamp(24px,2.1vw,36px);gap:12px}
+.slide[data-kind="odds"] .odds__match img{width:38px;height:38px}
+.slide[data-kind="odds"] .odds__at{font-size:16px}
+.slide[data-kind="odds"] .odds__num{font-size:clamp(22px,1.9vw,32px)}
+
+/* a single line gets even more room */
+.slide[data-kind="odds"][data-count="1"] .odds__row{padding:30px 24px}
+.slide[data-kind="odds"][data-count="1"] .odds__match{font-size:clamp(28px,2.5vw,44px)}
+.slide[data-kind="odds"][data-count="1"] .odds__match img{width:46px;height:46px}
+.slide[data-kind="odds"][data-count="1"] .odds__num{font-size:clamp(26px,2.3vw,40px)}
+
+/* ---------- Alabama feature slide ----------
+   One game, whole panel. Everything is oversized on purpose: this is the
+   slide you read from the far side of the room. */
+.bama{
+  flex:1 1 auto;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:22px;
+  text-align:center;
+}
+.bama__vs{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:clamp(24px,4vw,70px);
+  width:100%;
+}
+.bama__side{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:0}
+.bama__logo{width:clamp(70px,7vw,120px);height:clamp(70px,7vw,120px);object-fit:contain}
+.bama__team{
+  font-family:"Barlow Condensed","Arial Narrow",sans-serif;
+  font-weight:700;
+  font-size:clamp(30px,3vw,52px);
+  line-height:1.02;
+  letter-spacing:.01em;
+}
+.bama__rec{font-family:"IBM Plex Mono",monospace;font-size:14px;color:var(--faint)}
+.bama__score{
+  font-family:"Barlow Condensed","Arial Narrow",sans-serif;
+  font-weight:700;
+  font-size:clamp(46px,5vw,86px);
+  line-height:1;
+  color:var(--win);
+  font-variant-numeric:tabular-nums;
+}
+.bama__at{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:clamp(18px,1.6vw,26px);
+  color:var(--faint);
+}
+.bama__when{
+  font-family:"Barlow Condensed","Arial Narrow",sans-serif;
+  font-weight:700;
+  font-size:clamp(26px,2.6vw,44px);
+  letter-spacing:.03em;
+  color:var(--tally);
+}
+.bama__when.is-live{color:var(--win)}
+.bama__meta{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:clamp(12px,1.05vw,16px);
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--dim);
+}
+.bama__odds{
+  display:flex;
+  gap:clamp(14px,2vw,34px);
+  flex-wrap:wrap;
+  justify-content:center;
+  margin-top:4px;
+}
+.bama__cell{
+  background:var(--panel);
+  border:1px solid var(--line);
+  border-left:4px solid var(--accent);
+  border-radius:7px;
+  padding:12px 20px;
+  min-width:130px;
+}
+.bama__label{
+  font-family:"IBM Plex Mono",monospace;
+  font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--faint);
+  margin-bottom:5px;
+}
+.bama__val{
+  font-family:"Barlow Condensed","Arial Narrow",sans-serif;
+  font-weight:700;
+  font-size:clamp(24px,2.2vw,38px);
+  line-height:1;
+  color:var(--tally);
+  font-variant-numeric:tabular-nums;
+}
+
+/* keep game grids vertically centred so a short slide doesn't leave a
+   dead band across the bottom of the panel */
+.slide[data-kind="today"] .grid,
+.slide[data-kind="live"] .grid,
+.slide[data-kind="final"] .grid{align-content:center}
 
 /* ---------- week list ---------- */
 .week{flex:1 1 auto;display:flex;flex-direction:column;gap:7px}
@@ -582,10 +710,20 @@ body.kiosk{cursor:none}
   // Per-page capacity, and a ceiling on pages so one huge NFL Sunday
   // can't stretch the loop to ten minutes. Anything dropped is counted
   // and shown in the slide header rather than silently vanishing.
-  // Tuned small: the panel runs at 300% browser scale, so each slide
-  // only has ~640x360 CSS px to work with.
-  var PER = { live: 2, today: 3, final: 4, odds: 4, week: 6 };
-  var MAXPAGES = { live: 4, today: 6, final: 4, odds: 5, week: 6 };
+  // Four fixtures a slide is the readable maximum at 300% scale; when a
+  // bucket has more we add slides rather than shrink past legibility.
+  var PER = { live: 4, today: 4, final: 4, odds: 2, week: 6 };
+  var MAXPAGES = { live: 8, today: 10, final: 8, odds: 8, week: 12 };
+
+  // A slide holding one fixture doesn't need as long on screen as a full
+  // one. Odds slides in particular read in a glance when there's a single
+  // line up.
+  function holdFor(kind, n) {
+    if (kind === "odds") return n <= 1 ? 5000 : 10000;
+    if (n <= 1) return Math.max(6000, HOLD[kind] - 6000);
+    if (n === 2) return Math.max(8000, HOLD[kind] - 3000);
+    return HOLD[kind];
+  }
 
   var deck = [];
   var index = 0;
@@ -644,6 +782,19 @@ body.kiosk{cursor:none}
     img.loading = "lazy";
     img.onerror = function () { img.style.visibility = "hidden"; };
     return img;
+  }
+
+  // American moneyline -> implied win probability.
+  //   -270  ->  270/(270+100)  = 73.0%
+  //   +650  ->  100/(650+100)  = 13.3%
+  // Note these include the book's margin, so the two sides of a game sum to
+  // a bit over 100% - that overround is the vig, not an error.
+  function impliedPct(ml) {
+    if (ml === null || ml === undefined || ml === "") return null;
+    var n = parseInt(String(ml).replace(/[^0-9+\-]/g, ""), 10);
+    if (isNaN(n) || n === 0) return null;
+    var p = n < 0 ? (-n) / ((-n) + 100) : 100 / (n + 100);
+    return (Math.round(p * 1000) / 10).toFixed(1) + "%";
   }
 
   function chunk(list, size, maxPages) {
@@ -784,7 +935,7 @@ body.kiosk{cursor:none}
     var table = el("div", "odds");
 
     var head = el("div", "odds__head");
-    ["When", "Matchup", "Spread", "Moneyline", "Total"].forEach(function (h) {
+    ["When", "Matchup", "Spread", "Win chance", "Total"].forEach(function (h) {
       head.appendChild(el("span", null, h));
     });
     table.appendChild(head);
@@ -811,10 +962,11 @@ body.kiosk{cursor:none}
 
       var ml = el("span", "odds__num odds__ml");
       if (o.awayML || o.homeML) {
+        // shown as implied win probability rather than American odds
         var awaySpan = el("span", o.favorite && o.favorite === g.away.abbr ? "fav" : null,
-                          o.awayML || "—");
+                          impliedPct(o.awayML) || "—");
         var homeSpan = el("span", o.favorite && o.favorite === g.home.abbr ? "fav" : null,
-                          o.homeML || "—");
+                          impliedPct(o.homeML) || "—");
         ml.appendChild(awaySpan);
         ml.appendChild(el("span", null, "  /  "));
         ml.appendChild(homeSpan);
@@ -834,7 +986,9 @@ body.kiosk{cursor:none}
     return body;
   }
 
-  function weekSlide(games) {
+  // hideDayHeads: the per-day slides already carry the day in the kicker,
+  // so repeating it inside the list is just noise.
+  function weekSlide(games, hideDayHeads) {
     var body = el("div", "slide__body");
     var list = el("div", "week");
     var currentDay = null;
@@ -843,9 +997,11 @@ body.kiosk{cursor:none}
     games.forEach(function (g) {
       if (g.day !== currentDay) {
         currentDay = g.day;
-        var head = el("div", "week__day", longDay(g.start));
-        head.style.setProperty("--i", step++);
-        list.appendChild(head);
+        if (!hideDayHeads) {
+          var head = el("div", "week__day", longDay(g.start));
+          head.style.setProperty("--i", step++);
+          list.appendChild(head);
+        }
       }
       var row = el("div", "week__row");
       row.style.setProperty("--i", step++);
@@ -865,6 +1021,78 @@ body.kiosk{cursor:none}
     });
 
     body.appendChild(list);
+    return body;
+  }
+
+  /* ---------- Alabama feature slide ---------- */
+
+  // Alabama FOOTBALL only, and it comes straight from the server, which
+  // pulls the team's own schedule. The scoreboard feeds only look
+  // days_ahead into the future, so out of season the next game isn't in
+  // `games` at all - that's why this isn't just a filter over the slate.
+  function findBama(data) {
+    return data.bama || null;
+  }
+
+  function bamaSide(t, score, showScore) {
+    var box = el("div", "bama__side");
+    var lg = logo(t);
+    if (lg) { lg.className = "bama__logo"; box.appendChild(lg); }
+    box.appendChild(el("div", "bama__team", t.name || t.full || "TBD"));
+    if (t.record) box.appendChild(el("div", "bama__rec", t.record));
+    if (showScore) box.appendChild(el("div", "bama__score", score === null || score === undefined ? "—" : String(score)));
+    return box;
+  }
+
+  function bamaSlide(g) {
+    var body = el("div", "slide__body");
+    var wrap = el("div", "bama");
+    var showScore = g.state === "in" || g.state === "post";
+
+    var vs = el("div", "bama__vs");
+    vs.appendChild(bamaSide(g.away, g.away.score, showScore));
+    vs.appendChild(el("div", "bama__at", showScore ? "" : "@"));
+    vs.appendChild(bamaSide(g.home, g.home.score, showScore));
+    wrap.appendChild(vs);
+
+    // kickoff / status line
+    var when = g.state === "in" ? (g.status || "LIVE")
+             : g.state === "post" ? "FINAL"
+             : (longDay(g.start) + " · " + timeOf(g.start));
+    var whenEl = el("div", "bama__when" + (g.state === "in" ? " is-live" : ""), when);
+    wrap.appendChild(whenEl);
+
+    var meta = [];
+    if (g.league) meta.push(g.league);
+    if (g.broadcast) meta.push(g.broadcast);
+    if (g.venue) meta.push(g.venue);
+    if (meta.length) wrap.appendChild(el("div", "bama__meta", meta.join("  ·  ")));
+
+    // betting block
+    var o = g.odds;
+    if (o) {
+      var odds = el("div", "bama__odds");
+      function cell(label, value) {
+        var c = el("div", "bama__cell");
+        c.appendChild(el("div", "bama__label", label));
+        c.appendChild(el("div", "bama__val", value));
+        return c;
+      }
+      if (o.details) odds.appendChild(cell("Spread", o.details));
+      var ap = impliedPct(o.awayML), hp = impliedPct(o.homeML);
+      if (ap || hp) {
+        odds.appendChild(cell((g.away.abbr || "Away") + " win", ap || "—"));
+        odds.appendChild(cell((g.home.abbr || "Home") + " win", hp || "—"));
+      }
+      if (o.overUnder !== null && o.overUnder !== undefined) {
+        odds.appendChild(cell("Total", String(o.overUnder)));
+      }
+      if (odds.childNodes.length) wrap.appendChild(odds);
+    } else {
+      wrap.appendChild(el("div", "bama__meta", "No line posted yet"));
+    }
+
+    body.appendChild(wrap);
     return body;
   }
 
@@ -899,14 +1127,102 @@ body.kiosk{cursor:none}
         sub: subFor(kind, games.length, split.dropped),
         page: i + 1,
         pages: split.pages.length,
+        count: page.length,
         sig: sigOf(kind, page),
-        hold: HOLD[kind],
+        hold: holdFor(kind, page.length),
         build: function () {
           if (kind === "odds") return oddsSlide(page);
           if (kind === "week") return weekSlide(page);
           // today's slate reads best split by kickoff time
           return gridSlide(page, cols, kind === "today");
         }
+      });
+    });
+  }
+
+  // Today's slate filed by competition, so each sport gets its own page
+  // (or pages) instead of everything being lumped into "today" and "final".
+  // Busiest competition leads; inside a competition, still-to-play sits
+  // above finished.
+  function addTodayByLeague(out, pre, post) {
+    var all = pre.concat(post);
+    if (!all.length) return;
+
+    var order = [];
+    var byLg = {};
+    all.forEach(function (g) {
+      var k = g.league || "OTHER";
+      if (!byLg[k]) { byLg[k] = []; order.push(k); }
+      byLg[k].push(g);
+    });
+    order.sort(function (a, b) { return byLg[b].length - byLg[a].length; });
+
+    order.forEach(function (lg, li) {
+      var games = byLg[lg];
+      games.sort(function (a, b) {
+        if (a.state !== b.state) return a.state === "pre" ? -1 : 1;
+        return (a.start || 0) - (b.start || 0);
+      });
+
+      var nPre = games.filter(function (x) { return x.state === "pre"; }).length;
+      var nPost = games.length - nPre;
+      var bits = [];
+      if (nPre)  bits.push(nPre + " to come");
+      if (nPost) bits.push(nPost + " final");
+
+      var split = chunk(games, PER.today, MAXPAGES.today);
+      split.pages.forEach(function (page, i) {
+        out.push({
+          id: "lg-" + li + "-" + i,
+          kind: "today",
+          kicker: lg,
+          live: false,
+          sub: bits.join(" · ") +
+               (split.dropped > 0 ? " · +" + split.dropped + " not shown" : ""),
+          page: i + 1,
+          pages: split.pages.length,
+          count: page.length,
+          sig: sigOf("lg-" + lg, page),
+          hold: holdFor("today", page.length),
+          build: function () { return gridSlide(page, 2, false); }
+        });
+      });
+    });
+  }
+
+  // One slide per calendar day, rather than fixed-size chunks that split a
+  // day across slides. A day with more fixtures than a slide holds still
+  // pages, but the pages never mix two days together.
+  function addWeekByDay(out, later) {
+    if (!later.length) return;
+
+    var order = [];
+    var byDay = {};
+    later.forEach(function (g) {
+      var k = g.day || "";
+      if (!byDay[k]) { byDay[k] = []; order.push(k); }
+      byDay[k].push(g);
+    });
+
+    order.forEach(function (dayKey, dayIdx) {
+      var games = byDay[dayKey];
+      var split = chunk(games, PER.week, MAXPAGES.week);
+      split.pages.forEach(function (page, i) {
+        var label = longDay(page[0].start);
+        out.push({
+          id: "week-" + dayIdx + "-" + i,
+          kind: "week",
+          kicker: label,
+          live: false,
+          sub: games.length + (games.length === 1 ? " fixture" : " fixtures") +
+               (split.dropped > 0 ? " · +" + split.dropped + " not shown" : ""),
+          page: i + 1,
+          pages: split.pages.length,
+          count: page.length,
+          sig: sigOf("week-" + dayKey, page),
+          hold: holdFor("week", page.length),
+          build: function () { return weekSlide(page, true); }
+        });
       });
     });
   }
@@ -938,16 +1254,34 @@ body.kiosk{cursor:none}
     post.sort(function (a, b) { return (b.start || 0) - (a.start || 0); });
     later.sort(function (a, b) { return (a.start || 0) - (b.start || 0); });
 
+    // Alabama gets a permanent slide up front - live, next up, or the last
+    // result during an off-week, so there's always something there.
+    var bama = findBama(data);
+    if (bama) {
+      out.push({
+        id: "bama", kind: "bama",
+        kicker: bama.state === "in" ? "Alabama · live" :
+                bama.state === "post" ? "Alabama · final" : "Next Alabama football",
+        live: bama.state === "in",
+        sub: bama.league || "",
+        page: 1, pages: 1, count: 1,
+        sig: sigOf("bama", [bama]),
+        hold: bama.state === "in" ? 16000 : 13000,
+        build: function () { return bamaSlide(bama); }
+      });
+    }
+
+    // Live cuts across every sport and is the time-critical stuff, so it
+    // leads as one block. Everything else today is filed by competition.
     addPages(out, "live",  "Live now",      live, 2, true);
-    addPages(out, "today", "Today",         pre,  3, false);
-    addPages(out, "final", "Final today",   post, 3, false);
+    addTodayByLeague(out, pre, post);
 
     // Odds: everything still to play that actually carries a line,
     // today first, then the rest of the week.
     var priced = pre.concat(later).filter(function (g) { return !!g.odds; });
     addPages(out, "odds", "Betting lines", priced, 0, false);
 
-    addPages(out, "week", "This week", later, 0, false);
+    addWeekByDay(out, later);
 
     if (!out.length) {
       out.push({
@@ -998,6 +1332,10 @@ body.kiosk{cursor:none}
     }
 
     var node = el("section", "slide");
+    // Lets the CSS size cards to how many are actually on screen: a slide
+    // showing one fixture gets to be much larger than one showing four.
+    node.setAttribute("data-count", String(s.count || 1));
+    node.setAttribute("data-kind", s.kind);
     var head = el("div", "slide__head");
     var kicker = el("h1", "slide__kicker" + (s.live ? " is-live" : ""), s.kicker);
     head.appendChild(kicker);
